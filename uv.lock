@@ -1583,6 +1583,9 @@ source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "fastmcp" },
+    { name = "jsonschema" },
+    { name = "pyyaml" },
+    { name = "requests" },
 ]
 
 [package.optional-dependencies]
@@ -1610,6 +1613,7 @@ requires-dist = [
     { name = "click" },
     { name = "coverage", marker = "extra == 'test'" },
     { name = "fastmcp" },
+    { name = "jsonschema" },
     { name = "mkdocs", marker = "extra == 'doc'", specifier = ">=1.5.0" },
     { name = "mkdocs-gen-files", marker = "extra == 'doc'", specifier = ">=0.5.0" },
     { name = "mkdocs-literate-nav", marker = "extra == 'doc'", specifier = ">=0.6.0" },
@@ -1620,6 +1624,9 @@ requires-dist = [
     { name = "pre-commit", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'test'" },
     { name = "pytest-asyncio", marker = "extra == 'test'" },
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "tomllib", marker = "python_full_version < '3.11'" },
     { name = "twine", marker = "extra == 'dev'", specifier = ">=4.0.2" },
 ]
 provides-extras = ["dev", "doc", "test"]

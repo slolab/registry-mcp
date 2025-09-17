@@ -26,6 +26,10 @@ dependencies = [
   # "session-info2",
   "click",
   "fastmcp",
+  "pyyaml",
+  "requests",
+  "jsonschema",
+  "tomllib; python_version < '3.11'",
 ]
 optional-dependencies.dev = [
   "pre-commit",
