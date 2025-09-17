@@ -14,6 +14,24 @@
 
 A Model Context Protocol (MCP) server for assisting users in registering their MCP servers, knowledge graph components, and other biomedical tools to the BioContextAI registry.
 
+## 🚀 Quick Start
+
+To use this MCP server to submit your project to the BioContext registry, simply ask your AI assistant:
+
+> **"Help me submit this project to the BioContext registry"**
+
+The MCP will automatically:
+1. **Analyze your project** - Extract metadata from your project files
+2. **Generate YAML** - Create a schema.org-compatible specification
+3. **Validate** - Check the specification against registry requirements
+4. **Request confirmation** - Ask you to review before submission
+5. **Submit** - Send your project to the registry (after your confirmation)
+
+### Prerequisites
+
+- [Install the MCP server](https://slolab.github.io/registry-mcp/installation/) in your AI assistant
+- Have your project ready with a `pyproject.toml`, `README.md`, or similar metadata files
+
 ## Overview
 
 The Registry MCP provides a comprehensive set of tools to help users create, validate, and submit schema.org-compatible YAML specifications to the BioContextAI registry. It follows the same pattern as the [biocypher-mcp](https://github.com/biocypher/biocypher-mcp) repository, providing structured guidance and automation for registry submissions.
@@ -35,15 +53,16 @@ The Registry MCP provides a comprehensive set of tools to help users create, val
 1. **`analyze_project_directory_tool`** - Analyze project directory to extract metadata
 2. **`generate_yaml_template_tool`** - Generate YAML template from metadata
 3. **`validate_yaml_specification_tool`** - Validate YAML against registry schema
-4. **`submit_to_registry_tool`** - Submit specification to registry API
-5. **`get_registry_schema_tool`** - Get the complete registry schema
+4. **`submit_to_registry_tool`** - Request submission (requires user confirmation)
+5. **`confirm_and_submit_to_registry_tool`** - Actually submit after user confirmation
+6. **`get_registry_schema_tool`** - Get the complete registry schema
 
 #### Guidance and Troubleshooting Tools
 
-6. **`get_registry_workflow_guidance_tool`** - Get step-by-step submission workflow
-7. **`get_example_submissions_tool`** - Get example YAML submissions
-8. **`get_troubleshooting_guide_tool`** - Get comprehensive troubleshooting guide
-9. **`get_field_guidance_tool`** - Get detailed guidance for specific fields
+7. **`get_registry_workflow_guidance_tool`** - Get step-by-step submission workflow
+8. **`get_example_submissions_tool`** - Get example YAML submissions
+9. **`get_troubleshooting_guide_tool`** - Get comprehensive troubleshooting guide
+10. **`get_field_guidance_tool`** - Get detailed guidance for specific fields
 
 ## Installation
 
@@ -90,11 +109,32 @@ uv run registry_mcp --help
    validation_result = validate_yaml_specification_tool(yaml_content)
    ```
 
-4. **Submit to registry**:
+4. **Submit to registry** (with file-based confirmation):
    ```python
-   # Submit to the registry API
-   submission_result = submit_to_registry_tool(yaml_content)
+   # First, create YAML file and request confirmation
+   submission_request = submit_to_registry_tool(yaml_content)
+   
+   # The tool will create a YAML file and return confirmation request
+   if submission_request.get("requires_confirmation"):
+       print(submission_request["confirmation_message"])
+       yaml_file_path = submission_request["yaml_file"]
+       
+       # User must explicitly confirm before actual submission
+       # After user confirms, call:
+       submission_result = confirm_and_submit_to_registry_tool(yaml_file_path)
    ```
+
+### File-Based User Confirmation Workflow
+
+The registry submission process now uses a robust file-based confirmation system to prevent accidental submissions:
+
+1. **YAML File Creation**: `submit_to_registry_tool()` validates the YAML and creates a file with `user_confirmed: false`
+2. **User Review**: The tool displays submission details and asks for confirmation
+3. **User Decision**: User must explicitly confirm with "Yes, submit to registry" or "Confirm submission"
+4. **Confirmation Update**: `confirm_and_submit_to_registry_tool()` sets `user_confirmed: true` and performs the submission
+5. **Status Checking**: `check_yaml_file_status_tool()` allows checking the current status of any YAML file
+
+This ensures users have full control over when their MCP servers are submitted to the public registry, with a persistent record of the confirmation state.
 
 ### Example YAML Structure
 
@@ -147,6 +187,8 @@ featureList:
   - Feature 1
   - Feature 2
   - Feature 3
+
+user_confirmed: false  # Set to true only after user confirmation
 ```
 
 ## Schema Requirements
@@ -172,6 +214,7 @@ The registry uses a schema.org-compatible specification with the following requi
 - `softwareHelp`: Documentation/help resource
 - `featureList`: List of features/capabilities
 - `operatingSystem`: Supported operating systems
+- `user_confirmed`: User confirmation flag (boolean, defaults to false)
 
 ## Registry Schema
 

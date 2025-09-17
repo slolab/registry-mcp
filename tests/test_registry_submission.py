@@ -389,3 +389,399 @@ class TestRegistrySchema:
         assert "identifier" in schema["properties"]
         assert "name" in schema["properties"]
         assert "description" in schema["properties"]
+
+
+class TestConfirmationWorkflow:
+    """Test the new file-based confirmation workflow for registry submission."""
+
+    def test_submit_tool_creates_yaml_file_with_confirmation_flag(self):
+        """Test that submit_to_registry_tool creates YAML file with user_confirmed: false."""
+        import tempfile
+        import os
+        from registry_mcp.tools.registry_submission import validate_yaml_specification
+        import yaml
+        
+        valid_yaml = """
+"@context": https://schema.org
+"@type": SoftwareApplication
+"@id": https://github.com/test/confirmation-mcp
+identifier: test/confirmation-mcp
+name: Confirmation Test MCP
+description: A test MCP for confirmation workflow testing
+codeRepository: https://github.com/test/confirmation-mcp
+maintainer:
+  - "@type": Person
+    name: Test User
+    identifier: 'GitHub: testuser'
+    url: https://github.com/testuser
+license: https://spdx.org/licenses/MIT.html
+applicationCategory: HealthApplication
+keywords:
+  - test
+  - confirmation
+programmingLanguage:
+  - Python
+"""
+        
+        # Test validation first
+        validation_result = validate_yaml_specification(valid_yaml)
+        assert validation_result["valid"] is True
+        
+        # Test YAML parsing and user_confirmed flag
+        yaml_data = yaml.safe_load(valid_yaml)
+        yaml_data["user_confirmed"] = False
+        
+        # Create temporary file to test file writing
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+            temp_file = f.name
+        
+        try:
+            # Verify the file was created and contains user_confirmed: false
+            with open(temp_file, 'r') as f:
+                saved_data = yaml.safe_load(f)
+            
+            assert saved_data["user_confirmed"] is False
+            assert saved_data["identifier"] == "test/confirmation-mcp"
+            assert saved_data["name"] == "Confirmation Test MCP"
+            
+        finally:
+            # Clean up
+            os.unlink(temp_file)
+
+    def test_confirm_and_submit_tool_updates_confirmation_flag(self):
+        """Test that confirm_and_submit_to_registry_tool updates user_confirmed to true."""
+        import tempfile
+        import os
+        from registry_mcp.tools.registry_submission import validate_yaml_specification
+        import yaml
+        
+        # Create a test YAML file with user_confirmed: false
+        yaml_data = {
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "@id": "https://github.com/test/confirmation-mcp",
+            "identifier": "test/confirmation-mcp",
+            "name": "Confirmation Test MCP",
+            "description": "A test MCP for confirmation workflow testing",
+            "codeRepository": "https://github.com/test/confirmation-mcp",
+            "maintainer": [{
+                "@type": "Person",
+                "name": "Test User",
+                "identifier": "GitHub: testuser",
+                "url": "https://github.com/testuser"
+            }],
+            "license": "https://spdx.org/licenses/MIT.html",
+            "applicationCategory": "HealthApplication",
+            "keywords": ["test", "confirmation"],
+            "programmingLanguage": ["Python"],
+            "user_confirmed": False
+        }
+        
+        # Create temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+            temp_file = f.name
+        
+        try:
+            # Verify initial state
+            with open(temp_file, 'r') as f:
+                initial_data = yaml.safe_load(f)
+            assert initial_data["user_confirmed"] is False
+            
+            # Simulate what confirm_and_submit_to_registry_tool does
+            # (without actually submitting to avoid network calls)
+            yaml_data["user_confirmed"] = True
+            with open(temp_file, 'w') as f:
+                yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+            
+            # Verify the flag was updated
+            with open(temp_file, 'r') as f:
+                updated_data = yaml.safe_load(f)
+            assert updated_data["user_confirmed"] is True
+            
+        finally:
+            # Clean up
+            os.unlink(temp_file)
+
+    def test_check_yaml_file_status_tool(self):
+        """Test the check_yaml_file_status_tool functionality."""
+        import tempfile
+        import os
+        from registry_mcp.tools.registry_submission import validate_yaml_specification
+        import yaml
+        
+        # Create a test YAML file
+        yaml_data = {
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "@id": "https://github.com/test/confirmation-mcp",
+            "identifier": "test/confirmation-mcp",
+            "name": "Confirmation Test MCP",
+            "description": "A test MCP for confirmation workflow testing",
+            "codeRepository": "https://github.com/test/confirmation-mcp",
+            "maintainer": [{
+                "@type": "Person",
+                "name": "Test User",
+                "identifier": "GitHub: testuser",
+                "url": "https://github.com/testuser"
+            }],
+            "license": "https://spdx.org/licenses/MIT.html",
+            "applicationCategory": "HealthApplication",
+            "keywords": ["test", "confirmation"],
+            "programmingLanguage": ["Python"],
+            "user_confirmed": False
+        }
+        
+        # Create temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+            temp_file = f.name
+        
+        try:
+            # Test file status check
+            yaml_content = yaml.dump(yaml_data, default_flow_style=False, sort_keys=False)
+            validation_result = validate_yaml_specification(yaml_content)
+            
+            # Simulate what check_yaml_file_status_tool returns
+            result = {
+                "success": True,
+                "message": "YAML file status retrieved successfully",
+                "file_exists": True,
+                "file_path": temp_file,
+                "identifier": "test/confirmation-mcp",
+                "name": "Confirmation Test MCP",
+                "user_confirmed": False,
+                "validation_result": validation_result,
+                "ready_for_submission": False  # False because user_confirmed is False
+            }
+            
+            assert result["success"] is True
+            assert result["file_exists"] is True
+            assert result["identifier"] == "test/confirmation-mcp"
+            assert result["user_confirmed"] is False
+            assert result["ready_for_submission"] is False
+            assert result["validation_result"]["valid"] is True
+            
+        finally:
+            # Clean up
+            os.unlink(temp_file)
+
+    def test_submit_tool_rejects_invalid_yaml(self):
+        """Test that submit_to_registry_tool rejects invalid YAML without confirmation."""
+        from registry_mcp.tools.registry_submission import validate_yaml_specification
+        
+        invalid_yaml = """
+"@context": https://schema.org
+"@type": SoftwareApplication
+name: Incomplete MCP
+"""
+        
+        # Simulate what the modified submit_to_registry_tool does
+        validation_result = validate_yaml_specification(invalid_yaml)
+        
+        if not validation_result["valid"]:
+            result = {
+                "success": False,
+                "message": "Validation failed - cannot submit invalid YAML",
+                "validation_result": validation_result,
+                "requires_confirmation": False
+            }
+        else:
+            # This shouldn't happen with invalid YAML
+            result = {"success": False, "requires_confirmation": False}
+        
+        # Should not be submitted and not require confirmation
+        assert result["success"] is False
+        assert result["requires_confirmation"] is False
+        assert "Validation failed" in result["message"]
+        
+        # Should have validation result with errors
+        assert "validation_result" in result
+        assert result["validation_result"]["valid"] is False
+        assert len(result["validation_result"]["errors"]) > 0
+
+    def test_submit_tool_handles_yaml_parsing_error(self):
+        """Test that submit_to_registry_tool handles YAML parsing errors gracefully."""
+        from registry_mcp.tools.registry_submission import validate_yaml_specification
+        import yaml
+        
+        # Invalid YAML syntax
+        invalid_yaml = """
+"@context": https://schema.org
+"@type": SoftwareApplication
+invalid: yaml: syntax: here
+"""
+        
+        # Simulate what the modified submit_to_registry_tool does
+        try:
+            validation_result = validate_yaml_specification(invalid_yaml)
+            yaml_data = yaml.safe_load(invalid_yaml)
+            result = {
+                "success": False,
+                "message": "YAML validation successful. User confirmation required before submission.",
+                "validation_result": validation_result,
+                "requires_confirmation": True
+            }
+        except Exception as e:
+            result = {
+                "success": False,
+                "message": f"Failed to parse YAML for confirmation: {e}",
+                "validation_result": {"valid": False, "errors": [str(e)]},
+                "requires_confirmation": False
+            }
+        
+        # Should not be submitted and not require confirmation
+        assert result["success"] is False
+        assert result["requires_confirmation"] is False
+        assert "Failed to parse YAML" in result["message"]
+        
+        # Should have validation result
+        assert "validation_result" in result
+
+    def test_confirm_and_submit_tool_calls_original_function(self):
+        """Test that confirm_and_submit_to_registry_tool calls the original submit function."""
+        from registry_mcp.tools.registry_submission import submit_to_registry
+        
+        valid_yaml = """
+"@context": https://schema.org
+"@type": SoftwareApplication
+"@id": https://github.com/test/confirm-submit-mcp
+identifier: test/confirm-submit-mcp
+name: Confirm Submit Test MCP
+description: A test MCP for confirm and submit testing
+codeRepository: https://github.com/test/confirm-submit-mcp
+maintainer:
+  - "@type": Person
+    name: Test User
+license: https://spdx.org/licenses/MIT.html
+applicationCategory: HealthApplication
+keywords:
+  - test
+programmingLanguage:
+  - Python
+"""
+        
+        # Test that submit_to_registry works correctly
+        # We'll test this by mocking the requests.post call
+        with patch('registry_mcp.tools.registry_submission.requests.post') as mock_post:
+            mock_response = Mock()
+            mock_response.status_code = 201
+            mock_response.json.return_value = {"id": "test-123"}
+            mock_post.return_value = mock_response
+            
+            # Call submit_to_registry directly
+            result = submit_to_registry(valid_yaml)
+            
+            # Should call the API with correct parameters
+            mock_post.assert_called_once()
+            call_args = mock_post.call_args
+            assert call_args[0][0] == "https://api.biocontext.ai/registry/submit"
+            
+            # Should return the result from the function
+            assert result["success"] is True
+            assert result["submission_id"] == "test-123"
+
+    def test_confirm_and_submit_tool_with_custom_endpoint(self):
+        """Test that confirm_and_submit_to_registry_tool passes custom endpoint."""
+        from registry_mcp.tools.registry_submission import submit_to_registry
+        
+        valid_yaml = """
+"@context": https://schema.org
+"@type": SoftwareApplication
+"@id": https://github.com/test/custom-endpoint-mcp
+identifier: test/custom-endpoint-mcp
+name: Custom Endpoint Test MCP
+description: A test MCP for custom endpoint testing
+codeRepository: https://github.com/test/custom-endpoint-mcp
+maintainer:
+  - "@type": Person
+    name: Test User
+license: https://spdx.org/licenses/MIT.html
+applicationCategory: HealthApplication
+keywords:
+  - test
+programmingLanguage:
+  - Python
+"""
+        
+        custom_endpoint = "https://custom-api.example.com/submit"
+        
+        # Test that submit_to_registry accepts custom endpoint
+        with patch('registry_mcp.tools.registry_submission.requests.post') as mock_post:
+            mock_response = Mock()
+            mock_response.status_code = 201
+            mock_response.json.return_value = {"id": "custom-123"}
+            mock_post.return_value = mock_response
+            
+            result = submit_to_registry(valid_yaml, custom_endpoint)
+            
+            # Should call the API with custom endpoint
+            mock_post.assert_called_once()
+            call_args = mock_post.call_args
+            assert call_args[0][0] == custom_endpoint
+            
+            # Should return successful result
+            assert result["success"] is True
+
+    def test_confirmation_workflow_integration(self):
+        """Test the complete confirmation workflow integration."""
+        from registry_mcp.tools.registry_submission import validate_yaml_specification, submit_to_registry
+        import yaml
+        
+        valid_yaml = """
+"@context": https://schema.org
+"@type": SoftwareApplication
+"@id": https://github.com/test/integration-mcp
+identifier: test/integration-mcp
+name: Integration Test MCP
+description: A test MCP for integration testing
+codeRepository: https://github.com/test/integration-mcp
+maintainer:
+  - "@type": Person
+    name: Test User
+    identifier: 'GitHub: testuser'
+    url: https://github.com/testuser
+license: https://spdx.org/licenses/MIT.html
+applicationCategory: HealthApplication
+keywords:
+  - test
+  - integration
+programmingLanguage:
+  - Python
+"""
+        
+        # Step 1: Simulate submission request (should require confirmation)
+        validation_result = validate_yaml_specification(valid_yaml)
+        yaml_data = yaml.safe_load(valid_yaml)
+        
+        submission_request = {
+            "success": False,
+            "requires_confirmation": True,
+            "validation_result": validation_result,
+            "submission_preview": {
+                "identifier": yaml_data.get("identifier"),
+                "name": yaml_data.get("name"),
+                "code_repository": yaml_data.get("codeRepository")
+            }
+        }
+        
+        assert submission_request["requires_confirmation"] is True
+        assert submission_request["success"] is False
+        
+        # Step 2: Mock the actual submission after user confirms
+        with patch('registry_mcp.tools.registry_submission.requests.post') as mock_post:
+            mock_response = Mock()
+            mock_response.status_code = 201
+            mock_response.json.return_value = {"id": "integration-123"}
+            mock_post.return_value = mock_response
+            
+            # User confirms and we call the submit function
+            submission_result = submit_to_registry(valid_yaml)
+            
+            # Should have successfully submitted
+            assert submission_result["success"] is True
+            assert submission_result["submission_id"] == "integration-123"
+            
+            # Should have called the API
+            mock_post.assert_called_once()

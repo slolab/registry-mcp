@@ -185,6 +185,11 @@ def get_registry_schema() -> dict[str, Any]:
                     "type": "string"
                 },
                 "uniqueItems": True
+            },
+            "user_confirmed": {
+                "description": "User confirmation flag for registry submission",
+                "type": "boolean",
+                "default": False
             }
         },
         "required": [
@@ -380,6 +385,9 @@ def generate_yaml_template(metadata: dict[str, Any]) -> str:
     # Add feature list if provided
     if "featureList" in metadata:
         yaml_data["featureList"] = metadata["featureList"]
+    
+    # Add user confirmation flag (default to False)
+    yaml_data["user_confirmed"] = metadata.get("user_confirmed", False)
     
     return yaml.dump(yaml_data, default_flow_style=False, sort_keys=False)
 
@@ -592,19 +600,216 @@ def validate_yaml_specification_tool(yaml_content: str) -> dict[str, Any]:
 @mcp.tool
 def submit_to_registry_tool(yaml_content: str, api_endpoint: str = "https://api.biocontext.ai/registry/submit") -> dict[str, Any]:
     """
-    Submit a YAML specification to the registry API.
+    Prepare a YAML specification for registry submission with user confirmation.
     
-    This tool validates and submits a YAML specification to the BioContextAI
-    registry API for processing and storage.
+    This tool validates a YAML specification, writes it to a file with user_confirmed: false,
+    and requests user confirmation before allowing submission to the BioContextAI registry API.
     
     Args:
         yaml_content: YAML content as string
         api_endpoint: Registry API endpoint URL (optional, defaults to BioContextAI API)
         
     Returns:
+        Dict containing validation results, file path, and confirmation request.
+    """
+    # First validate the YAML
+    validation_result = validate_yaml_specification(yaml_content)
+    
+    if not validation_result["valid"]:
+        return {
+            "success": False,
+            "message": "Validation failed - cannot submit invalid YAML",
+            "validation_result": validation_result,
+            "requires_confirmation": False
+        }
+    
+    # Parse YAML to extract key information
+    try:
+        yaml_data = yaml.safe_load(yaml_content)
+        identifier = yaml_data.get("identifier", "Unknown")
+        name = yaml_data.get("name", "Unknown")
+        code_repository = yaml_data.get("codeRepository", "Unknown")
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to parse YAML: {e}",
+            "validation_result": validation_result,
+            "requires_confirmation": False
+        }
+    
+    # Set user_confirmed to False and write to file
+    yaml_data["user_confirmed"] = False
+    
+    # Create filename based on identifier
+    safe_identifier = identifier.replace("/", "_").replace("\\", "_")
+    yaml_filename = f"registry_submission_{safe_identifier}.yaml"
+    yaml_filepath = os.path.join(os.getcwd(), yaml_filename)
+    
+    try:
+        # Write YAML to file
+        with open(yaml_filepath, 'w', encoding='utf-8') as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+        
+        return {
+            "success": True,
+            "message": "YAML file created successfully. User confirmation required before submission.",
+            "validation_result": validation_result,
+            "requires_confirmation": True,
+            "yaml_file": yaml_filepath,
+            "submission_preview": {
+                "identifier": identifier,
+                "name": name,
+                "code_repository": code_repository,
+                "api_endpoint": api_endpoint
+            },
+            "confirmation_message": f"""
+📄 YAML file created: {yaml_filename}
+
+The following MCP server is ready for submission to the BioContextAI registry:
+
+📋 Submission Details:
+• Name: {name}
+• Identifier: {identifier}
+• Repository: {code_repository}
+• API Endpoint: {api_endpoint}
+• YAML File: {yaml_filepath}
+
+✅ Validation Status: PASSED
+• No errors found
+• All required fields present
+• Schema compliance verified
+• user_confirmed: false (awaiting your confirmation)
+
+⚠️  IMPORTANT: This will submit your MCP server to the public BioContextAI registry.
+Please review the YAML file carefully and confirm if you want to proceed with the submission.
+
+To confirm submission, please respond with: "Yes, submit to registry" or "Confirm submission"
+To cancel, respond with: "No" or "Cancel submission"
+
+The YAML file has been saved with user_confirmed: false. Only after your explicit confirmation
+will the user_confirmed flag be set to true and the submission allowed.
+            """
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to write YAML file: {e}",
+            "validation_result": validation_result,
+            "requires_confirmation": False
+        }
+
+
+@mcp.tool
+def confirm_and_submit_to_registry_tool(yaml_file_path: str, api_endpoint: str = "https://api.biocontext.ai/registry/submit") -> dict[str, Any]:
+    """
+    Confirm and submit a YAML specification to the registry API.
+    
+    This tool reads a YAML file, sets user_confirmed to true, and performs the actual
+    submission to the BioContextAI registry API. It should only be called after the
+    user has confirmed they want to proceed with the submission.
+    
+    Args:
+        yaml_file_path: Path to the YAML file to submit
+        api_endpoint: Registry API endpoint URL (optional, defaults to BioContextAI API)
+        
+    Returns:
         Dict containing submission results and any errors encountered
     """
-    return submit_to_registry(yaml_content, api_endpoint)
+    try:
+        # Read the YAML file
+        with open(yaml_file_path, 'r', encoding='utf-8') as f:
+            yaml_data = yaml.safe_load(f)
+        
+        # Check if user_confirmed is False (safety check)
+        if yaml_data.get("user_confirmed", False):
+            return {
+                "success": False,
+                "message": "YAML file already has user_confirmed: true. Submission may have already been attempted.",
+                "errors": ["File already confirmed for submission"]
+            }
+        
+        # Set user_confirmed to True
+        yaml_data["user_confirmed"] = True
+        
+        # Write the updated YAML back to file
+        with open(yaml_file_path, 'w', encoding='utf-8') as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+        
+        # Convert back to string for submission
+        yaml_content = yaml.dump(yaml_data, default_flow_style=False, sort_keys=False)
+        
+        # Perform the actual submission
+        return submit_to_registry(yaml_content, api_endpoint)
+        
+    except FileNotFoundError:
+        return {
+            "success": False,
+            "message": f"YAML file not found: {yaml_file_path}",
+            "errors": [f"File not found: {yaml_file_path}"]
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to process YAML file: {e}",
+            "errors": [str(e)]
+        }
+
+
+@mcp.tool
+def check_yaml_file_status_tool(yaml_file_path: str) -> dict[str, Any]:
+    """
+    Check the status of a YAML file for registry submission.
+    
+    This tool reads a YAML file and reports its current status, including
+    whether the user has confirmed the submission.
+    
+    Args:
+        yaml_file_path: Path to the YAML file to check
+        
+    Returns:
+        Dict containing file status information
+    """
+    try:
+        # Check if file exists
+        if not os.path.exists(yaml_file_path):
+            return {
+                "success": False,
+                "message": f"YAML file not found: {yaml_file_path}",
+                "file_exists": False
+            }
+        
+        # Read the YAML file
+        with open(yaml_file_path, 'r', encoding='utf-8') as f:
+            yaml_data = yaml.safe_load(f)
+        
+        # Extract key information
+        identifier = yaml_data.get("identifier", "Unknown")
+        name = yaml_data.get("name", "Unknown")
+        user_confirmed = yaml_data.get("user_confirmed", False)
+        
+        # Validate the YAML
+        yaml_content = yaml.dump(yaml_data, default_flow_style=False, sort_keys=False)
+        validation_result = validate_yaml_specification(yaml_content)
+        
+        return {
+            "success": True,
+            "message": "YAML file status retrieved successfully",
+            "file_exists": True,
+            "file_path": yaml_file_path,
+            "identifier": identifier,
+            "name": name,
+            "user_confirmed": user_confirmed,
+            "validation_result": validation_result,
+            "ready_for_submission": user_confirmed and validation_result["valid"]
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to read YAML file: {e}",
+            "file_exists": False,
+            "error": str(e)
+        }
 
 
 @mcp.tool

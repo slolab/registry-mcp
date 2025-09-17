@@ -189,31 +189,77 @@ Common issues and solutions:
 - **Invalid license**: Use SPDX format (e.g., `https://spdx.org/licenses/MIT.html`)
 - **Unsupported repository**: Use GitHub, GitLab, Bitbucket, or Codeberg
 
-### Step 8: Submit to Registry
+### Step 8: Submit to Registry (File-Based Confirmation)
 
-Once validation passes, submit your specification:
+The registry submission process now uses a robust file-based confirmation system to prevent accidental submissions:
 
 **Tool**: `submit_to_registry_tool`
 
 ```python
+# Step 8a: Create YAML file and request confirmation
 submission_result = await client.call_tool("submit_to_registry_tool", {
     "yaml_content": yaml_content
 })
 
 print(f"Success: {submission_result['success']}")
 print(f"Message: {submission_result['message']}")
-if submission_result['submission_id']:
-    print(f"Submission ID: {submission_result['submission_id']}")
+print(f"Requires confirmation: {submission_result.get('requires_confirmation', False)}")
+
+if submission_result.get('requires_confirmation'):
+    print(f"YAML file created: {submission_result['yaml_file']}")
+    print("Confirmation message:")
+    print(submission_result['confirmation_message'])
 ```
 
 **Example Output**:
 ```json
 {
   "success": true,
-  "message": "Successfully submitted to registry",
-  "submission_id": "submission-123",
-  "errors": []
+  "message": "YAML file created successfully. User confirmation required before submission.",
+  "requires_confirmation": true,
+  "yaml_file": "/path/to/registry_submission_your-username_your-component.yaml",
+  "submission_preview": {
+    "identifier": "your-username/your-component",
+    "name": "Your Component Name",
+    "code_repository": "https://github.com/your-username/your-component"
+  },
+  "confirmation_message": "📄 YAML file created: registry_submission_your-username_your-component.yaml\n\n..."
 }
+```
+
+**Step 8b: Confirm and Submit**
+
+After reviewing the YAML file and confirming you want to proceed:
+
+**Tool**: `confirm_and_submit_to_registry_tool`
+
+```python
+# Only call this after user confirmation
+if user_confirmed:
+    final_result = await client.call_tool("confirm_and_submit_to_registry_tool", {
+        "yaml_file_path": submission_result['yaml_file']
+    })
+    
+    print(f"Final submission success: {final_result['success']}")
+    print(f"Final message: {final_result['message']}")
+    if final_result.get('submission_id'):
+        print(f"Submission ID: {final_result['submission_id']}")
+```
+
+**Step 8c: Check File Status (Optional)**
+
+You can check the status of any YAML file at any time:
+
+**Tool**: `check_yaml_file_status_tool`
+
+```python
+status_result = await client.call_tool("check_yaml_file_status_tool", {
+    "yaml_file_path": submission_result['yaml_file']
+})
+
+print(f"File exists: {status_result['file_exists']}")
+print(f"User confirmed: {status_result['user_confirmed']}")
+print(f"Ready for submission: {status_result['ready_for_submission']}")
 ```
 
 ## Complete Example
@@ -263,9 +309,22 @@ yaml_content = await client.call_tool("generate_yaml_template_tool", {"metadata"
 validation = await client.call_tool("validate_yaml_specification_tool", {"yaml_content": yaml_content})
 
 if validation["valid"]:
-    # 5. Submit
+    # 5. Submit (with file-based confirmation)
     submission = await client.call_tool("submit_to_registry_tool", {"yaml_content": yaml_content})
-    print(f"Submission successful: {submission['success']}")
+    
+    if submission.get('requires_confirmation'):
+        print(f"YAML file created: {submission['yaml_file']}")
+        print("Please review the YAML file and confirm submission.")
+        print(submission['confirmation_message'])
+        
+        # After user confirmation:
+        if user_confirmed:
+            final_submission = await client.call_tool("confirm_and_submit_to_registry_tool", {
+                "yaml_file_path": submission['yaml_file']
+            })
+            print(f"Final submission successful: {final_submission['success']}")
+    else:
+        print(f"Submission failed: {submission['message']}")
 else:
     print(f"Validation failed: {validation['errors']}")
 ```
@@ -274,6 +333,12 @@ else:
 
 ### Available Tools
 
+- `analyze_project_directory_tool`: Analyze project directory to extract metadata
+- `generate_yaml_template_tool`: Generate YAML template from metadata
+- `validate_yaml_specification_tool`: Validate YAML against registry schema
+- `submit_to_registry_tool`: Create YAML file and request confirmation
+- `confirm_and_submit_to_registry_tool`: Confirm and submit to registry API
+- `check_yaml_file_status_tool`: Check status of YAML file
 - `get_registry_workflow_guidance_tool`: Complete workflow guidance
 - `get_example_submissions_tool`: Example YAML submissions
 - `get_troubleshooting_guide_tool`: Comprehensive troubleshooting

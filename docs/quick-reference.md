@@ -58,10 +58,31 @@ result = await client.call_tool("validate_yaml_specification_tool", {
 ```
 
 #### `submit_to_registry_tool`
-Submit validated YAML specification to registry API.
+Create YAML file and request user confirmation for registry submission.
 
 **Parameters:**
 - `yaml_content` (str): YAML content as string
+- `api_endpoint` (str, optional): Registry API endpoint URL
+
+**Returns:**
+- File creation results with confirmation request and YAML file path
+
+**Example:**
+```python
+result = await client.call_tool("submit_to_registry_tool", {
+    "yaml_content": yaml_string
+})
+
+if result.get('requires_confirmation'):
+    print(f"YAML file created: {result['yaml_file']}")
+    print(result['confirmation_message'])
+```
+
+#### `confirm_and_submit_to_registry_tool`
+Confirm and submit YAML file to registry API after user confirmation.
+
+**Parameters:**
+- `yaml_file_path` (str): Path to the YAML file to submit
 - `api_endpoint` (str, optional): Registry API endpoint URL
 
 **Returns:**
@@ -69,9 +90,28 @@ Submit validated YAML specification to registry API.
 
 **Example:**
 ```python
-result = await client.call_tool("submit_to_registry_tool", {
-    "yaml_content": yaml_string
+result = await client.call_tool("confirm_and_submit_to_registry_tool", {
+    "yaml_file_path": "/path/to/registry_submission_file.yaml"
 })
+```
+
+#### `check_yaml_file_status_tool`
+Check the status of a YAML file for registry submission.
+
+**Parameters:**
+- `yaml_file_path` (str): Path to the YAML file to check
+
+**Returns:**
+- File status information including confirmation state and validation results
+
+**Example:**
+```python
+result = await client.call_tool("check_yaml_file_status_tool", {
+    "yaml_file_path": "/path/to/registry_submission_file.yaml"
+})
+
+print(f"User confirmed: {result['user_confirmed']}")
+print(f"Ready for submission: {result['ready_for_submission']}")
 ```
 
 #### `get_registry_schema_tool`
