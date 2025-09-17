@@ -57,6 +57,10 @@ uv sync
 
 # Run the MCP server
 uv run registry_mcp
+
+# Or test the installation
+uv run registry_mcp --version
+uv run registry_mcp --help
 ```
 
 ## Usage
