@@ -431,7 +431,7 @@ programmingLanguage:
         yaml_data = yaml.safe_load(valid_yaml)
         yaml_data["user_confirmed"] = False
         
-        # Create temporary file to test file writing
+        # Create temporary file to test file writing (simulating meta.yaml)
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
             temp_file = f.name

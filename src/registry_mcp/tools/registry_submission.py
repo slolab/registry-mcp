@@ -598,7 +598,7 @@ def validate_yaml_specification_tool(yaml_content: str) -> dict[str, Any]:
 
 
 @mcp.tool
-def submit_to_registry_tool(yaml_content: str, api_endpoint: str = "https://api.biocontext.ai/registry/submit") -> dict[str, Any]:
+def submit_to_registry_tool(yaml_content: str, api_endpoint: str = "https://api.biocontext.ai/registry/submit", project_path: str = ".") -> dict[str, Any]:
     """
     Prepare a YAML specification for registry submission with user confirmation.
     
@@ -608,9 +608,15 @@ def submit_to_registry_tool(yaml_content: str, api_endpoint: str = "https://api.
     Args:
         yaml_content: YAML content as string
         api_endpoint: Registry API endpoint URL (optional, defaults to BioContextAI API)
+        project_path: Path to the project directory where meta.yaml should be saved (defaults to current directory)
         
     Returns:
         Dict containing validation results, file path, and confirmation request.
+        
+    Note:
+        The meta.yaml file will be created in the specified project_path directory.
+        This ensures the file is saved in the correct project location rather than
+        the current working directory where the MCP server is running.
     """
     # First validate the YAML
     validation_result = validate_yaml_specification(yaml_content)
@@ -640,10 +646,11 @@ def submit_to_registry_tool(yaml_content: str, api_endpoint: str = "https://api.
     # Set user_confirmed to False and write to file
     yaml_data["user_confirmed"] = False
     
-    # Create filename based on identifier
-    safe_identifier = identifier.replace("/", "_").replace("\\", "_")
-    yaml_filename = f"registry_submission_{safe_identifier}.yaml"
-    yaml_filepath = os.path.join(os.getcwd(), yaml_filename)
+    # Create meta.yaml file in the specified project directory
+    # Convert relative path to absolute path for consistency
+    project_abs_path = os.path.abspath(project_path)
+    yaml_filename = "meta.yaml"
+    yaml_filepath = os.path.join(project_abs_path, yaml_filename)
     
     try:
         # Write YAML to file
@@ -681,12 +688,15 @@ The following MCP server is ready for submission to the BioContextAI registry:
 • user_confirmed: false (awaiting your confirmation)
 
 ⚠️  IMPORTANT: This will submit your MCP server to the public BioContextAI registry.
-Please review the YAML file carefully and confirm if you want to proceed with the submission.
+Please review the meta.yaml file carefully and confirm if you want to proceed with the submission.
+
+📍 File Location: The meta.yaml file has been created in: {project_abs_path}
+   Make sure you're in the correct project directory before confirming submission.
 
 To confirm submission, please respond with: "Yes, submit to registry" or "Confirm submission"
 To cancel, respond with: "No" or "Cancel submission"
 
-The YAML file has been saved with user_confirmed: false. Only after your explicit confirmation
+The meta.yaml file has been saved with user_confirmed: false. Only after your explicit confirmation
 will the user_confirmed flag be set to true and the submission allowed.
             """
         }

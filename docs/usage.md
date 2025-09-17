@@ -193,6 +193,8 @@ Common issues and solutions:
 
 The registry submission process now uses a robust file-based confirmation system to prevent accidental submissions:
 
+**Important**: Make sure you're in your project directory when running the submission tools, as the `meta.yaml` file will be created in the current working directory.
+
 **Tool**: `submit_to_registry_tool`
 
 ```python
@@ -217,13 +219,13 @@ if submission_result.get('requires_confirmation'):
   "success": true,
   "message": "YAML file created successfully. User confirmation required before submission.",
   "requires_confirmation": true,
-  "yaml_file": "/path/to/registry_submission_your-username_your-component.yaml",
+  "yaml_file": "/path/to/meta.yaml",
   "submission_preview": {
     "identifier": "your-username/your-component",
     "name": "Your Component Name",
     "code_repository": "https://github.com/your-username/your-component"
   },
-  "confirmation_message": "📄 YAML file created: registry_submission_your-username_your-component.yaml\n\n..."
+  "confirmation_message": "📄 YAML file created: meta.yaml\n\n..."
 }
 ```
 

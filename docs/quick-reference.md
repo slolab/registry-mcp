@@ -91,7 +91,7 @@ Confirm and submit YAML file to registry API after user confirmation.
 **Example:**
 ```python
 result = await client.call_tool("confirm_and_submit_to_registry_tool", {
-    "yaml_file_path": "/path/to/registry_submission_file.yaml"
+    "yaml_file_path": "/path/to/meta.yaml"
 })
 ```
 
@@ -107,7 +107,7 @@ Check the status of a YAML file for registry submission.
 **Example:**
 ```python
 result = await client.call_tool("check_yaml_file_status_tool", {
-    "yaml_file_path": "/path/to/registry_submission_file.yaml"
+    "yaml_file_path": "/path/to/meta.yaml"
 })
 
 print(f"User confirmed: {result['user_confirmed']}")

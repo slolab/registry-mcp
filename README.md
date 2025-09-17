@@ -112,7 +112,8 @@ uv run registry_mcp --help
 4. **Submit to registry** (with file-based confirmation):
    ```python
    # First, create YAML file and request confirmation
-   submission_request = submit_to_registry_tool(yaml_content)
+   # Specify project_path to save meta.yaml in the project directory
+   submission_request = submit_to_registry_tool(yaml_content, project_path=".")
    
    # The tool will create a YAML file and return confirmation request
    if submission_request.get("requires_confirmation"):
@@ -128,11 +129,13 @@ uv run registry_mcp --help
 
 The registry submission process now uses a robust file-based confirmation system to prevent accidental submissions:
 
-1. **YAML File Creation**: `submit_to_registry_tool()` validates the YAML and creates a file with `user_confirmed: false`
+1. **YAML File Creation**: `submit_to_registry_tool()` validates the YAML and creates a `meta.yaml` file with `user_confirmed: false` in the specified project directory (defaults to current directory)
 2. **User Review**: The tool displays submission details and asks for confirmation
 3. **User Decision**: User must explicitly confirm with "Yes, submit to registry" or "Confirm submission"
 4. **Confirmation Update**: `confirm_and_submit_to_registry_tool()` sets `user_confirmed: true` and performs the submission
 5. **Status Checking**: `check_yaml_file_status_tool()` allows checking the current status of any YAML file
+
+**Important**: The `meta.yaml` file will be created in the specified project directory. Use the `project_path` parameter to ensure it's saved in the correct location.
 
 This ensures users have full control over when their MCP servers are submitted to the public registry, with a persistent record of the confirmation state.
 
