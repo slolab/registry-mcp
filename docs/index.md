@@ -14,6 +14,7 @@ To use this MCP server to submit your project to the BioContext registry, simply
 > **"Help me submit this project to the BioContext registry"**
 
 The MCP will automatically:
+
 1. **Analyze your project** - Extract metadata from your project files
 2. **Generate YAML** - Create a schema.org-compatible specification  
 3. **Validate** - Check the specification against registry requirements
